@@ -26,12 +26,12 @@ Dự án minh họa một hệ thống **Đấu giá kín (Sealed-Bid Auction)
 Các bước chung để thiết lập và chạy dự án (có thể thay đổi tùy thuộc vào cấu trúc file cụ thể):
 1. Thiết lập Repository
 '''bash
-# Clone repository
+## Clone repository
+git clone [https://github.com/Quangx199x/MY-ZAMA-FHE-AUCTION.git]
 '''
-git clone [https://github.com/Quangx199x/MY-ZAMA-FHE-AUCTION.git] (https://github.com/Quangx199x/MY-ZAMA-FHE-AUCTION.git)
 cd MY-ZAMA-FHE-AUCTION
 '''
-# Cài đặt dependencies (backend/contract)
+## Cài đặt dependencies (backend/contract)
 '''
 npm install
 '''
