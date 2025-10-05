@@ -1,4 +1,4 @@
-<center># MY ZAMA FHE AUCTION: Đấu giá Kín Tuyệt đối</center>
+# <center>MY ZAMA FHE AUCTION: Đấu giá Kín Tuyệt đối</center>
 Dự án minh họa một hệ thống Đấu giá kín (Sealed-Bid Auction) hoàn toàn bảo mật, được xây dựng trên Zama FHEVM (Fully Homomorphic Encryption EVM).
 
 ##I. Mục tiêu Dự án
