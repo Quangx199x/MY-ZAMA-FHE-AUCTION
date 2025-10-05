@@ -1,17 +1,24 @@
-import { DeployFunction } from "hardhat-deploy/types";
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+// deploy/01_deploy_fheauction.js
+const { HardhatRuntimeEnvironment } = require("hardhat/types");
+const { DeployFunction } = require("hardhat-deploy/types");
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployer } = await hre.getNamedAccounts();
-  const { deploy } = hre.deployments;
+  const { deployments, getNamedAccounts } = hre;
+  const { deploy } = deployments;
 
-  const deployedFHECounter = await deploy("FHECounter", {
+  const { deployer } = await getNamedAccounts();
+
+  // Deploy FHEAuction với minDeposit = 0.01 ETH, duration = 1 giờ (3600 giây)
+  const minDepositWei = hre.ethers.parseEther("0.01");
+  const durationSeconds = 3600;
+
+  await deploy("FHEAuction", {
     from: deployer,
+    args: [durationSeconds, minDepositWei],
     log: true,
+    autoMine: true, // Tự động mine tx cho test
   });
-
-  console.log(`FHECounter contract: `, deployedFHECounter.address);
 };
+
 export default func;
-func.id = "deploy_fheCounter"; // id required to prevent reexecution
-func.tags = ["FHECounter"];
+func.tags = ["FHEAuction"];
