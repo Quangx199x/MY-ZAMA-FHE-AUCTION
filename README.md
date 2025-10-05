@@ -1,4 +1,4 @@
-# FHEVM Hardhat Template
+# FHEVM FHE-AUCTION
 
 A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
 FHEVM protocol by Zama.
