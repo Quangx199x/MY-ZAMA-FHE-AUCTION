@@ -1,110 +1,87 @@
-# FHEVM FHE-AUCTION
+# MY ZAMA FHE AUCTION
 
-A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
-FHEVM protocol by Zama.
+Dự án minh họa một hệ thống **Đấu giá kín (Sealed-Bid Auction)
+** Hoàn toàn bảo mật, được xây dựng trên **Zama FHEVM (Fully Homomorphic Encryption EVM)**.
+** Mục tiêu là cho phép người dùng đặt giá thầu được mã hóa, và logic tìm người thắng thầu được xử lý trên blockchain mà không cần giải mã bất kỳ giá thầu nào
+** Loại bỏ hoàn toàn nguy cơ MEV (Miner Extractable Value) và front-running.
 
-## Quick Start
+## 🌟 Tính Năng Nổi Bật
 
-For detailed instructions see:
-[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
+* **Bảo mật Tuyệt đối (End-to-End Confidentiality):** Giá thầu được mã hóa trên client và được xử lý mã hóa hoàn toàn trên chuỗi (homomorphic computation).
+* **Chống Lộ thông tin:** Không ai, kể cả người vận hành chuỗi khối (node operators), có thể biết được giá trị của các thầu chưa thắng.
+* **Giải mã Riêng tư:** Người tham gia chỉ có thể tự giải mã kết quả thắng/thua của chính họ bằng Private Key FHE của mình.
+* **Tương thích EVM:** Hợp đồng được viết bằng Solidity với các kiểu dữ liệu `euint` mở rộng.
 
-### Prerequisites
+## 🛠️ Công Nghệ Sử Dụng (Tech Stack)
 
-- **Node.js**: Version 20 or higher
-- **npm or yarn/pnpm**: Package manager
+| Hạng mục | Công nghệ | Mục đích |
+| :--- | :--- | :--- |
+| **Blockchain** | **Zama FHEVM** | Nền tảng thực thi giao dịch mã hóa đồng hình. |
+| **Smart Contract** | **Solidity**, **Hardhat** | Ngôn ngữ phát triển hợp đồng thông minh và môi trường phát triển (bao gồm testing, deployment). |
+| **Thư viện FHE** | **`fhevmjs`** (TypeScript/JavaScript) | Thư viện front-end dùng để tạo cặp khóa FHE, mã hóa giá trị thầu thô (plaintext) và giải mã kết quả cuối cùng. |
+| **Frontend** | **Next.js** / **React** | Giao diện người dùng để tương tác với ví (wallet) và hợp đồng FHE. |
 
-### Installation
+## 🚀 Cài Đặt và Vận Hành (Installation & Usage)
 
-1. **Install dependencies**
+Các bước chung để thiết lập và chạy dự án (có thể thay đổi tùy thuộc vào cấu trúc file cụ thể):
+1. Thiết lập Repository
+'''bash
+# Clone repository
+'''
+git clone [https://github.com/Quangx199x/MY-ZAMA-FHE-AUCTION.git] (https://github.com/Quangx199x/MY-ZAMA-FHE-AUCTION.git)
+cd MY-ZAMA-FHE-AUCTION
+'''
+# Cài đặt dependencies (backend/contract)
+'''
+npm install
+'''
+### 2. Chạy FHEVM Local Node (hoặc kết nối Testnet)
+Để phát triển, bạn cần chạy một môi trường FHEVM cục bộ hoặc kết nối tới FHEVM Testnet (như Zama Devnet):
+'''
+Bash
 
-   ```bash
-   npm install
-   ```
+# Chạy node Hardhat cục bộ có hỗ trợ FHEVM
+npx hardhat node
+'''
+### 3. Triển khai Hợp đồng (Deployment)
+Triển khai hợp đồng Đấu giá lên mạng lưới FHEVM:
+'''
+Bash
 
-2. **Set up environment variables**
+# Triển khai hợp đồng
+npx hardhat run --network local scripts/deploy.ts
+'''
+(Ghi lại địa chỉ hợp đồng đã triển khai.)
 
-   ```bash
-   npx hardhat vars set MNEMONIC
+### 4. Chạy Frontend
+Sử dụng địa chỉ hợp đồng đã triển khai để tương tác qua giao diện web:
 
-   # Set your Infura API key for network access
-   npx hardhat vars set INFURA_API_KEY
+Bash
 
-   # Optional: Set Etherscan API key for contract verification
-   npx hardhat vars set ETHERSCAN_API_KEY
-   ```
+# Chuyển đến thư mục frontend (nếu có)
+'''
+cd frontend
+npm install
+npm run dev
+'''
+# Mở trình duyệt tại http://localhost:3000 (thường là vậy)
 
-3. **Compile and test**
+🤝 Tương tác (Contract Interaction Flow)
 
-   ```bash
-   npm run compile
-   npm run test
-   ```
+Client: Người dùng nhập giá thầu (ví dụ: 0.15).
 
-4. **Deploy to local network**
+fhevmjs: Mã hóa 0.15 thành euint ciphertext C bằng Public Key FHE của mạng.
 
-   ```bash
-   # Start a local FHEVM-ready node
-   npx hardhat node
-   # Deploy to local network
-   npx hardhat deploy --network localhost
-   ```
+Client: Gửi giao dịch placeBid(C, proof) đến FHEVM.
 
-5. **Deploy to Sepolia Testnet**
+FHEVM: Hợp đồng Solidity nhận C, so sánh C với highestBid (cũng là euint đã mã hóa) bằng TFHE.gt().
 
-   ```bash
-   # Deploy to Sepolia
-   npx hardhat deploy --network sepolia
-   # Verify contract on Etherscan
-   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-   ```
+FHEVM: Cập nhật highestBid và highestBidder (vẫn ở dạng mã hóa) mà không tiết lộ giá trị thầu.
 
-6. **Test on Sepolia Testnet**
+Client: Sau khi đấu giá kết thúc, người dùng yêu cầu hợp đồng mã hóa lại kết quả thắng/thua (ebool) bằng Public Key FHE của chính họ.
 
-   ```bash
-   # Once deployed, you can run a simple test on Sepolia.
-   npx hardhat test --network sepolia
-   ```
+Client: Dùng Private Key FHE cục bộ để giải mã ebool, hiển thị kết quả cuối cùng.
 
-## 📁 Project Structure
-
-```
-fhevm-hardhat-template/
-├── contracts/           # Smart contract source files
-│   └── FHECounter.sol   # Example FHE counter contract
-├── deploy/              # Deployment scripts
-├── tasks/               # Hardhat custom tasks
-├── test/                # Test files
-├── hardhat.config.ts    # Hardhat configuration
-└── package.json         # Dependencies and scripts
-```
-
-## 📜 Available Scripts
-
-| Script             | Description              |
-| ------------------ | ------------------------ |
-| `npm run compile`  | Compile all contracts    |
-| `npm run test`     | Run all tests            |
-| `npm run coverage` | Generate coverage report |
-| `npm run lint`     | Run linting checks       |
-| `npm run clean`    | Clean build artifacts    |
-
-## 📚 Documentation
-
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
-- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
-- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
-
-## 📄 License
-
-This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
-- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
-- **Community**: [Zama Discord](https://discord.gg/zama)
-
----
-
-**Built with ❤️ by the Zama team**
+Để hiểu rõ hơn về cách viết Hợp đồng thông minh bảo mật bằng Zama FHEVM, bạn có thể tham khảo video hướng dẫn sau:
+Hướng dẫn viết hợp đồng thông minh bảo mật bằng Zama's fhEVM
+https://www.youtube.com/watch?v=1FtbyHZwNX4
