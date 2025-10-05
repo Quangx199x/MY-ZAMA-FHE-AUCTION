@@ -93,6 +93,10 @@
                         <div class="info-value" id="timeLeft">--:--:--</div>
                     </div>
                 </div>
+                <!-- NEW: Nút Finalize Auction -->
+                <button id="finalizeBtn" class="reveal-btn" disabled style="display: none;">
+                    &gt; FINALIZE AUCTION (After End Time)
+                </button>
                 <button id="revealBtn" class="reveal-btn" disabled style="display: none;">
                     &gt; REQUEST DECRYPT AUCTION WINNER & REFUND $
                 </button>
@@ -310,7 +314,7 @@
             logMessage('[EVENT] Event listeners registered for BidReceived, AuctionFinished, and DecryptionRequested.', 'info');
         }
 
-        // --- WALLET & CONNECTION (Giữ nguyên) ---
+        // --- WALLET & CONNECTION (Updated: Auto-show finalize/decrypt buttons based on state) ---
 
         async function connectWallet() {
             if (typeof window.ethereum === 'undefined') {
@@ -368,6 +372,17 @@
                 showNotification('Connected to Sepolia. FHE interface ready.', 'success');
                 logMessage('[SUCCESS] Wallet, Network, and Contract OK. Ready to bid.', 'confirmed');
                 startAuctionTimer();
+
+                // NEW: Auto-show buttons based on state
+                const ended = auctionEndTime < Date.now();
+                const finalized = await fheAuctionContract.isAuctionFinalized();
+                const owner = await fheAuctionContract.owner();
+                const isOwner = account.toLowerCase() === owner.toLowerCase();
+                if (ended && !finalized && isOwner) {
+                    document.getElementById('finalizeBtn').style.display = 'block';
+                } else if (finalized && isOwner) {
+                    document.getElementById('revealBtn').style.display = 'block';
+                }
             } catch (error) {
                 console.error(error);
                 const msg = error.message.includes('User rejected') ? 'User rejected connection/switch.' : error.message;
@@ -455,7 +470,61 @@
             }
         }
         
-        // --- DECRYPT LOGIC (Giữ nguyên) ---
+        // --- NEW: Finalize Auction Function (To fix revert before decrypt) ---
+
+        async function finalizeAuction() {
+            if (!account || !fheAuctionContract) {
+                showNotification('Wallet or contract not initialized.', 'error');
+                return;
+            }
+
+            const ownerAddress = await fheAuctionContract.owner();
+            if (account.toLowerCase() !== ownerAddress.toLowerCase()) {
+                showNotification('Bạn không phải là Owner của contract. Chỉ Owner mới được gọi Finalize.', 'error');
+                return;
+            }
+
+            const ended = (await fheAuctionContract.getAuctionEndTime()).toNumber() < Date.now() / 1000;
+            const finalized = await fheAuctionContract.isAuctionFinalized();
+            if (!ended) {
+                showNotification('Auction chưa kết thúc. Chờ hết thời gian bid.', 'error');
+                return;
+            }
+            if (finalized) {
+                showNotification('Auction đã finalized. Tiến hành decrypt.', 'info');
+                return;
+            }
+
+            const btn = document.getElementById('finalizeBtn');
+            btn.innerHTML = '<span class="loading"></span> FINALIZING AUCTION...';
+            btn.disabled = true;
+
+            try {
+                logMessage('[FINALIZE] Initiating contract FINALIZE...', 'info');
+                const tx = await fheAuctionContract.finalizeAuction({ gasLimit: 500000 });
+                logMessage(`[TX] Sending FINALIZE transaction. Hash: ${tx.hash.substring(0, 10)}...`, 'pending');
+
+                const receipt = await tx.wait(); 
+                
+                logMessage(`[SUCCESS] FINALIZE TX confirmed. Auction now finalized. Proceed to decrypt.`, 'confirmed');
+                showNotification('Auction finalized successfully. Now decrypt to refund.', 'success');
+
+                // Auto-show decrypt button
+                document.getElementById('revealBtn').style.display = 'block';
+                document.getElementById('finalizeBtn').style.display = 'none';
+
+            } catch (error) {
+                console.error("Finalize Failed:", error);
+                const msg = error.reason || error.message || 'Finalize Failed';
+                logMessage(`[FATAL] Finalize failed: ${msg}`, 'failed');
+                showNotification(`FINALIZE FAILED: ${msg}`, 'error');
+            } finally {
+                btn.innerHTML = '> FINALIZE AUCTION (After End Time)';
+                btn.disabled = false;
+            }
+        }
+
+        // --- UPDATED: DECRYPT LOGIC (Check finalized before request) ---
 
         async function requestDecryptResults() {
             if (!account || !fheAuctionContract) {
@@ -469,7 +538,14 @@
                 return;
             }
 
-            logMessage('[DECRYPT] Auction ended. Initiating contract DECRYPT REQUEST...', 'info');
+            // UPDATED: Check if finalized
+            const finalized = await fheAuctionContract.isAuctionFinalized();
+            if (!finalized) {
+                showNotification('Finalize auction first! (Click FINALIZE button)', 'error');
+                return;
+            }
+
+            logMessage('[DECRYPT] Auction finalized. Initiating contract DECRYPT REQUEST...', 'info');
             
             const btn = document.getElementById('revealBtn');
             btn.innerHTML = '<span class="loading"></span> REQUESTING DECRYPT...';
@@ -484,6 +560,9 @@
                 logMessage(`[SUCCESS] DECRYPT REQUEST TX confirmed. Waiting for DecryptionRequested event and callback...`, 'confirmed');
                 showNotification('Decrypt request confirmed. Waiting for relayer callback and AuctionFinished event.', 'info');
 
+                // NEW: Start polling for refund after decrypt
+                pollAndRefund();
+
             } catch (error) {
                 console.error("Decrypt Request Failed:", error);
                 const msg = error.reason || error.message || 'Decrypt Request Failed';
@@ -493,6 +572,38 @@
                 btn.innerHTML = '> REQUEST DECRYPT AUCTION WINNER & REFUND $';
                 btn.disabled = false;
             }
+        }
+
+        // --- NEW: Poll for Decrypt Complete and Auto Refund ---
+
+        async function pollAndRefund() {
+            logMessage('[POLL] Starting poll for decrypt complete and refund...', 'info');
+            const poll = setInterval(async () => {
+                try {
+                    const wonBid = await fheAuctionContract.winningBid();
+                    if (wonBid.gt(0)) {  // Decrypt complete (winningBid updated)
+                        clearInterval(poll);
+                        logMessage('[DECRYPT] Callback received. Winning bid decrypted.', 'confirmed');
+
+                        // Auto refund if owner
+                        const owner = await fheAuctionContract.owner();
+                        if (account.toLowerCase() === owner.toLowerCase()) {
+                            const deposit = await fheAuctionContract.currentLeadDeposit();
+                            if (deposit.gt(0)) {
+                                const refundTx = await fheAuctionContract.manualRefund(account, deposit, { gasLimit: 300000 });
+                                const receipt = await refundTx.wait();
+                                logMessage(`[SUCCESS] Refunded ${ethers.utils.formatEther(deposit)} ETH! Tx: ${receipt.transactionHash.substring(0, 10)}...`, 'confirmed');
+                                showNotification(`Refund complete: ${ethers.utils.formatEther(deposit)} ETH`, 'success');
+                            } else {
+                                logMessage('[INFO] No deposit to refund (0 bids). Auction ended.', 'info');
+                                showNotification('Auction ended. No refund needed.', 'info');
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Poll error:', e);
+                }
+            }, 30000);  // Poll every 30 seconds
         }
 
         // --- TIMER & LIVE FEED (Giữ nguyên) ---
@@ -509,10 +620,18 @@
                     timerElement.textContent = 'AUCTION CLOSED!';
                     clearInterval(timerInterval);
                     document.getElementById('bidBtn').style.display = 'none';
-                    document.getElementById('revealBtn').style.display = 'block';
-                    document.getElementById('revealBtn').disabled = false;
-
-                    logMessage('[ALERT] Auction has ended. Owner: Call REQUEST DECRYPT to finalize results and initiate refunds.', 'info');
+                    // Auto-show finalize if owner
+                    setTimeout(async () => {
+                        const owner = await fheAuctionContract?.owner();
+                        const isOwner = account && account.toLowerCase() === owner?.toLowerCase();
+                        const finalized = await fheAuctionContract?.isAuctionFinalized();
+                        if (isOwner && !finalized) {
+                            document.getElementById('finalizeBtn').style.display = 'block';
+                        } else if (finalized && isOwner) {
+                            document.getElementById('revealBtn').style.display = 'block';
+                        }
+                    }, 1000);
+                    logMessage('[ALERT] Auction has ended. Owner: Call FINALIZE then DECRYPT to finalize results and initiate refunds.', 'info');
                     return;
                 }
                 
@@ -534,6 +653,7 @@
             document.getElementById('connectBtn').addEventListener('click', connectWallet);
             document.getElementById('bidBtn').addEventListener('click', placeBid);
             document.getElementById('revealBtn').addEventListener('click', requestDecryptResults);
+            document.getElementById('finalizeBtn').addEventListener('click', finalizeAuction);  // NEW
 
             // 2. Khởi tạo timer tạm thời
             auctionEndTime = Date.now() + 30000; 
