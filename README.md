@@ -58,18 +58,19 @@ Thực hiện các bước sau để thiết lập và chạy dự án (Các bư
 Thiết lập Repository & Cài đặt Dependencies Mở Terminal và chạy các lệnh sau:
 
 <pre>
+     ```
 Bash
 
 git clone https://github.com/Quangx199x/MY-ZAMA-FHE-AUCTION.git
-
+   ```
 </pre>
 
 Di chuyển vào thư mục dự án
 
 <pre>
-
+   ```
 cd MY-ZAMA-FHE-AUCTION
-
+   ```
 </pre>
 
 
@@ -77,14 +78,14 @@ cd MY-ZAMA-FHE-AUCTION
 
 1. **Install dependencies**
 <pre>
-  bash
+   ```bash
    npm install
-
+   ```
 </pre>
 
 2. **Set up environment variables**
 <pre>
-  bash
+   ```bash
    npx hardhat vars set MNEMONIC
 
    # Set your Infura API key for network access
@@ -92,40 +93,40 @@ cd MY-ZAMA-FHE-AUCTION
 
    # Optional: Set Etherscan API key for contract verification
    npx hardhat vars set ETHERSCAN_API_KEY
-
+   ```
 </pre>
 
 3. **Compile and test**
 <pre>
-bash
+   ```bash
    npm run compile
    npm run test
-
+   ```
 </pre>
 4. **Deploy to local network**
 <pre>
-bash
+   ```bash
    # Start a local FHEVM-ready node
    npx hardhat node
    # Deploy to local network
    npx hardhat deploy --network localhost
-
+   ```
 </pre>
 5. **Deploy to Sepolia Testnet**
 <pre>
-bash
+   ```bash
    # Deploy to Sepolia
    npx hardhat deploy --network sepolia
    # Verify contract on Etherscan
    npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-
+   ```
 </pre>
 6. **Test on Sepolia Testnet**
 <pre>
-bash
+   ```bash
    # Once deployed, you can run a simple test on Sepolia.
    npx hardhat test --network sepolia
-
+   ```
 </pre>
 ## 📁 Project Structure
 
